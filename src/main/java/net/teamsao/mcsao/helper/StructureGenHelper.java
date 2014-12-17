@@ -2,7 +2,9 @@ package net.teamsao.mcsao.helper;
 
 import java.util.ArrayList;
 
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.BlockPos;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
@@ -90,14 +92,14 @@ public class StructureGenHelper
 	 * @param z
 	 * @return true if the block's immediate neighbors have blocks in them, false if not.
 	 */
-	public static boolean blockHasNeighbors(World world, int x, int y, int z)
+	public static boolean blockHasNeighbors(World world, BlockPos block)
 	{
-		return world.getBlock(x+1, y, z) != Blocks.air ? false :
-			   world.getBlock(x-1, y, z) != Blocks.air ? false :
-			   world.getBlock(x, y+1, z) != Blocks.air ? false :
-			   world.getBlock(x, y-1, z) != Blocks.air ? false :
-			   world.getBlock(x, y, z+1) != Blocks.air ? false :
-			   world.getBlock(x, y, z-1) != Blocks.air ? false : true;
+		return world.getBlockState(block.offsetEast()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetWest()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetUp()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetDown()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetNorth()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetSouth()) != Blocks.air ? false : true;
 	}
 	
 	/**
@@ -111,13 +113,13 @@ public class StructureGenHelper
 	 * @param z
 	 * @return true if this block just above the floor has a neighbor, false if not.
 	 */
-	public static boolean floorBlockHasNeighbors(World world, int x, int y, int z)
+	public static boolean floorBlockHasNeighbors(World world, BlockPos block)
 	{
-		return world.getBlock(x+1, y, z) != Blocks.air ? false :
-			   world.getBlock(x-1, y, z) != Blocks.air ? false :
-			   world.getBlock(x, y+1, z) != Blocks.air ? false :
-			   world.getBlock(x, y, z+1) != Blocks.air ? false :
-			   world.getBlock(x, y, z-1) != Blocks.air ? false : true;
+		return world.getBlockState(block.offsetEast()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetWest()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetUp()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetNorth()) != Blocks.air ? false :
+			   world.getBlockState(block.offsetSouth()) != Blocks.air ? false : true;
 	}
 	
 	/**
@@ -146,7 +148,7 @@ public class StructureGenHelper
 		int xBounds = schema.length+xStart;
 		int zBounds = schema[0][0].length+zStart;
 		int yBounds = schema[0].length+yStart;
-		Chunk chunk = world.getChunkFromBlockCoords(xStart, zStart);
+		Chunk chunk = world.getChunkFromBlockCoords(new BlockPos(xStart, yStart, zStart));
 		ExtendedBlockStorage miniChunk = chunk.getBlockStorageArray()[yStart >> 4];
 		int chunkXStart = chunk.xPosition << 4;
 		int chunkZStart = chunk.zPosition << 4;
@@ -156,7 +158,7 @@ public class StructureGenHelper
 		{
 			if(z >> 4 != chunk.zPosition || x >> 4 != chunk.xPosition)
 			{
-				chunk = world.getChunkFromBlockCoords(x, z);
+				chunk = world.getChunkFromBlockCoords(new BlockPos(x, 0, z));
 				miniChunk = chunk.getBlockStorageArray()[yStart >> 4];
 			}
 			for(int y = yStart; y < yBounds; y++)
@@ -166,12 +168,12 @@ public class StructureGenHelper
 					miniChunk = chunk.getBlockStorageArray()[y >> 4];
 					miniChunkYStart = miniChunk.getYLocation();
 				}
-				miniChunk.func_150818_a(x & 15, y & 15, z & 15, schema[x][y][z].getBlock());
-				miniChunk.setExtBlockMetadata(x & 15, y & 15, z & 15, schema[x][y][z].getMetadata());
+				IBlockState block = miniChunk.get(x & 15, y & 15, z & 15);
+				
+				miniChunk.set(x & 15, y & 15, z & 15, schema[x][y][z].getState());
 				if(!world.isRemote)
 				{
-					world.markBlockForUpdate(x, y, z);
-					world.notifyBlockChange(x, y, z, schema[x][y][z].getBlock());
+					world.markBlockForUpdate(new BlockPos(x,y,z));
 				}
 			}
 		}
@@ -230,11 +232,11 @@ public class StructureGenHelper
 	 * @param z
 	 * @return the number of blocks from this block that the floor of the hole is.
 	 */
-	public static int blocksDownToFloor(World world, int x, int y, int z)
+	public static int blocksDownToFloor(World world, BlockPos position)
 	{
-		int startY = y;
+		int startY = position.getY();
 		int blocksDown = 0;
-		if(world.getBlock(x, y, z) == Blocks.air)
+		if(world.getBlockState(position).getBlock() == Blocks.air)
 		{
 			return blocksDown;
 		}
@@ -242,7 +244,7 @@ public class StructureGenHelper
 		{
 			blocksDown++;
 			startY--;
-			if(world.getBlock(x, startY, z) != Blocks.air)
+			if(world.getBlockState(position.offsetDown(startY)).getBlock() != Blocks.air)
 			{
 				return blocksDown;
 			}
@@ -272,7 +274,7 @@ public class StructureGenHelper
 		{
 			blocksDown++;
 			startY--;
-			if(world.getBlock(block.getBlockX(), startY, block.getBlockZ()) != Blocks.air)
+			if(world.getBlockState(block.getPosition().offsetDown(startY)).getBlock() != Blocks.air)
 			{
 				return blocksDown;
 			}
@@ -288,9 +290,10 @@ public class StructureGenHelper
 	 * @param z
 	 * @return a new BlockData object which contains the block type, metadata, and entered coordinates.
 	 */
-	public static BlockData getBlockDataAt(IBlockAccess world, int x, int y, int z)
+	public static BlockData getBlockDataAt(IBlockAccess world, BlockPos position)
 	{
-		return new BlockData(world.getBlock(x, y, z), world.getBlockMetadata(x, y, z), x, y, z);
+		IBlockState state = world.getBlockState(position);
+		return new BlockData(state.getBlock(), state, position);
 	}
 	
 	/**
@@ -303,13 +306,13 @@ public class StructureGenHelper
 	 * @param z
 	 * @return the BlockData array listing all four neighbors of the block at the listed coordinates.
 	 */
-	public static BlockData[] blockHorizontalNeighbors(World world, int x, int y, int z)
+	public static BlockData[] blockHorizontalNeighbors(World world, BlockPos position)
 	{
 		BlockData[] neighbors = new BlockData[4];
-		neighbors[0] = getBlockDataAt(world, x+1, y, z);
-		neighbors[1] = getBlockDataAt(world, x-1, y, z);
-		neighbors[2] = getBlockDataAt(world, x, y, z+1);
-		neighbors[3] = getBlockDataAt(world, x, y, z-1);
+		neighbors[0] = getBlockDataAt(world, position.offsetEast());
+		neighbors[1] = getBlockDataAt(world, position.offsetWest());
+		neighbors[2] = getBlockDataAt(world, position.offsetNorth());
+		neighbors[3] = getBlockDataAt(world, position.offsetSouth());
 		return neighbors;
 	}
 	
@@ -324,15 +327,15 @@ public class StructureGenHelper
 	 * @param z
 	 * @return an array of blocks with the list of all immediate neighbors to the block at the given coordinates.
 	 */
-	public static BlockData[] blockNeighbors(World world, int x, int y, int z)
+	public static BlockData[] blockNeighbors(World world, BlockPos position)
 	{
 		BlockData[] neighbors = new BlockData[6];
-		neighbors[0] = getBlockDataAt(world, x+1, y, z);
-		neighbors[1] = getBlockDataAt(world, x-1, y, z);
-		neighbors[2] = getBlockDataAt(world, x, y+1, z);
-		neighbors[3] = getBlockDataAt(world, x, y-1, z);
-		neighbors[4] = getBlockDataAt(world, x, y, z+1);
-		neighbors[5] = getBlockDataAt(world, x, y, z-1);
+		neighbors[0] = getBlockDataAt(world, position.offsetEast());
+		neighbors[1] = getBlockDataAt(world, position.offsetWest());
+		neighbors[2] = getBlockDataAt(world, position.offsetUp());
+		neighbors[3] = getBlockDataAt(world, position.offsetDown());
+		neighbors[4] = getBlockDataAt(world, position.offsetNorth());
+		neighbors[5] = getBlockDataAt(world, position.offsetSouth());
 		return neighbors;
 	}
 	
@@ -352,46 +355,46 @@ public class StructureGenHelper
 	 * @param count
 	 * @return true if a large amount of sheer drops is found, false if the pattern ends early on in any direction.
 	 */
-	public static boolean isLargeDrop(World world, int x, int y, int z, int count, ArrayList<BlockData> traversed)
+	public static boolean isLargeDrop(World world, BlockPos position, int count, ArrayList<BlockData> traversed)
 	{
 		if(count >= 5)
 		{
 			return true;
 		}
-		BlockData block1 = getBlockDataAt(world, x+1, y, z);
+		BlockData block1 = getBlockDataAt(world, position.offsetEast());
 		if(!traversed.contains(block1))
 		{
 			traversed.add(block1);
-			if(world.getBlock(x+1, y, z) == Blocks.air && blocksDownToFloor(world, block1) >= 6)
+			if(block1.getBlock() == Blocks.air && blocksDownToFloor(world, block1) >= 6)
 			{
-				return isLargeDrop(world, x+1, y, z, count++, BlockData.copyList(traversed));
+				return isLargeDrop(world, block1.getPosition(), count++, BlockData.copyList(traversed));
 			}
 		}
-		BlockData block2 = getBlockDataAt(world, x-1, y, z);
+		BlockData block2 = getBlockDataAt(world, position.offsetWest());
 		if(!traversed.contains(block2))
 		{
 			traversed.add(block2);
-			if(world.getBlock(x-1, y, z) == Blocks.air && blocksDownToFloor(world, block2) >= 6)
+			if(block2.getBlock() == Blocks.air && blocksDownToFloor(world, block2) >= 6)
 			{
-				return isLargeDrop(world, x-1, y, z, count++, BlockData.copyList(traversed));
+				return isLargeDrop(world, block2.getPosition(), count++, BlockData.copyList(traversed));
 			}
 		}
-		BlockData block3 = getBlockDataAt(world, x, y, z+1);
+		BlockData block3 = getBlockDataAt(world, position.offsetSouth());
 		if(!traversed.contains(block3))
 		{
 			traversed.add(block3);
-			if(world.getBlock(x, y, z+1) == Blocks.air && blocksDownToFloor(world, block3) >= 6)
+			if(block3.getBlock() == Blocks.air && blocksDownToFloor(world, block3) >= 6)
 			{
-				return isLargeDrop(world, x, y, z+1, count++, BlockData.copyList(traversed));
+				return isLargeDrop(world, block3.getPosition(), count++, BlockData.copyList(traversed));
 			}
 		}
-		BlockData block4 = getBlockDataAt(world, x, y, z-1);
+		BlockData block4 = getBlockDataAt(world, position.offsetNorth());
 		if(!traversed.contains(block4))
 		{
 			traversed.add(block4);
-			if(world.getBlock(x, y, z-1) == Blocks.air && blocksDownToFloor(world, block4) >= 6)
+			if(block4.getBlock() == Blocks.air && blocksDownToFloor(world, block4) >= 6)
 			{
-				return isLargeDrop(world, x, y, z-1, count++, BlockData.copyList(traversed));
+				return isLargeDrop(world, block4.getPosition(), count++, BlockData.copyList(traversed));
 			}
 		}
 		return false;
@@ -421,15 +424,16 @@ public class StructureGenHelper
 		{
 			for(int z = zStart; z < zBounds; z++)
 			{
-				if(world.getBlock(x, yStart, z) == Blocks.air)
+				BlockPos start = new BlockPos(x, yStart, z);
+				if(world.getBlockState(start).getBlock() == Blocks.air)
 				{
-					int holeDepth = blocksDownToFloor(world, x, yStart, z);
+					int holeDepth = blocksDownToFloor(world, start);
 					if(holeDepth >= 6)
 					{
 						holeCount++;
 						ArrayList<BlockData> traversed = new ArrayList<BlockData>();
-						traversed.add(getBlockDataAt(world, x, yStart, z));
-						if(isLargeDrop(world, x, yStart, z, 0, traversed))
+						traversed.add(getBlockDataAt(world, start));
+						if(isLargeDrop(world, start, 0, traversed))
 						{
 							return false;
 						}
@@ -493,15 +497,16 @@ public class StructureGenHelper
 			{
 				continue;
 			}
-			if(world.getBlock(x, y, z) != Blocks.air)
+			BlockPos position = new BlockPos(x,y,z);
+			if(world.getBlockState(position).getBlock() != Blocks.air)
 			{
 				return false;
 			}
-			else if(y > yStart+1 && blockHasNeighbors(world, x, y, z))
+			else if(y > yStart+1 && blockHasNeighbors(world, position))
 			{
 				return false;
 			}
-			else if(y > yStart && floorBlockHasNeighbors(world, x, y, z))
+			else if(y > yStart && floorBlockHasNeighbors(world, position))
 			{
 				return false;
 			}

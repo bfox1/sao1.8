@@ -3,7 +3,9 @@ package net.teamsao.mcsao.helper;
 import java.util.ArrayList;
 
 import net.minecraft.block.Block;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.BlockPos;
 
 /**
  * Look! Blocks now store their own metadata again!
@@ -14,23 +16,31 @@ public class BlockData implements Comparable
 {
 
 	private Block block;
-	private int metadata;
-	private int blockX;
-	private int blockY;
-	private int blockZ;
+	private IBlockState state;
+	private BlockPos position;
 	
 	/**
 	 * Allows you to set both the block and a specific metadata.
 	 * @param block
 	 * @param metadata
 	 */
-	public BlockData(Block block, int metadata, int x, int y, int z)
+	public BlockData(Block block, IBlockState state, int x, int y, int z)
 	{
 		this.block = block;
-		this.metadata = metadata;
-		this.blockX = x;
-		this.blockY = y;
-		this.blockZ = z;
+		this.state = state;
+		this.position = new BlockPos(x,y,z);
+	}
+	
+	/**
+	 * Allows you to set both the block and a specific metadata.
+	 * @param block
+	 * @param metadata
+	 */
+	public BlockData(Block block, IBlockState state, BlockPos position)
+	{
+		this.block = block;
+		this.state = state;
+		this.position = position;
 	}
 	
 	/**
@@ -40,10 +50,8 @@ public class BlockData implements Comparable
 	public BlockData(Block block, int x, int y, int z)
 	{
 		this.block = block;
-		this.metadata = 0;
-		this.blockX = x;
-		this.blockY = y;
-		this.blockZ = z;
+		this.state = Blocks.air.getDefaultState();
+		this.position = new BlockPos(x,y,z);
 	}
 	
 	/**
@@ -52,10 +60,8 @@ public class BlockData implements Comparable
 	public BlockData(int x, int y, int z)
 	{
 		this.block = Blocks.air;
-		this.metadata = 0;
-		this.blockX = x;
-		this.blockY = y;
-		this.blockZ = z;
+		this.state = Blocks.air.getDefaultState();
+		this.position = new BlockPos(x,y,z);
 	}
 	
 	/**
@@ -64,7 +70,8 @@ public class BlockData implements Comparable
 	 */
 	public BlockData getCopy()
 	{
-		return new BlockData(this.block, this.metadata, this.blockX, this.blockY, this.blockZ);
+		return new BlockData(this.block, this.state, 
+				new BlockPos(this.position.getX(), this.position.getY(), this.position.getZ()));
 	}
 	
 	/**
@@ -83,44 +90,15 @@ public class BlockData implements Comparable
 		return copy;
 	}
 	
-	/**
-	 * This comparator method compares block ID and then metadata. If both are equal it returns 0, otherwise it
-	 * will return -1 if the current object has a lesser value and 1 if it has a greater value.
-	 */
-	@Override
-	public int compareTo(Object block)
-	{
-		BlockData otherBlock = (BlockData) block;
-		Block block1 = this.block;
-		Block block2 = otherBlock.getBlock();
-		if(this.equals(block))
-		{
-			return 0;
-		}
-		if(Block.getIdFromBlock(block1) < Block.getIdFromBlock(block2))
-		{
-			return -1;
-		}
-		else if(Block.getIdFromBlock(block1) > Block.getIdFromBlock(block2))
-		{
-			return 1;
-		}
-		else
-		{
-			return this.metadata < otherBlock.getMetadata() ? -1 : 1;
-		}
-	}
-	
 	@Override
 	public int hashCode()
 	{
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + ((block == null) ? 0 : block.hashCode());
-		result = prime * result + blockX;
-		result = prime * result + blockY;
-		result = prime * result + blockZ;
-		result = prime * result + metadata;
+		result = prime * result
+				+ ((position == null) ? 0 : position.hashCode());
+		result = prime * result + ((state == null) ? 0 : state.hashCode());
 		return result;
 	}
 
@@ -139,7 +117,15 @@ public class BlockData implements Comparable
 				return false;
 		} else if (!block.equals(other.block))
 			return false;
-		if (metadata != other.metadata)
+		if (position == null) {
+			if (other.position != null)
+				return false;
+		} else if (!position.equals(other.position))
+			return false;
+		if (state == null) {
+			if (other.state != null)
+				return false;
+		} else if (!state.equals(other.state))
 			return false;
 		return true;
 	}
@@ -157,30 +143,46 @@ public class BlockData implements Comparable
 	{
 		this.block = block;
 	}
-
-	public int getMetadata()
-	{
-		return metadata;
-	}
-
-	public void setMetadata(int metadata)
-	{
-		this.metadata = metadata;
-	}
 	
+	public IBlockState getState()
+	{
+		return state;
+	}
+
+	public void setState(IBlockState state)
+	{
+		this.state = state;
+	}
+
+	public BlockPos getPosition()
+	{
+		return position;
+	}
+
+	public void setPosition(BlockPos position)
+	{
+		this.position = position;
+	}
+
 	public int getBlockX()
 	{
-		return blockX;
+		return position.getX();
 	}
 
 	public int getBlockY()
 	{
-		return blockY;
+		return position.getY();
 	}
 
 	public int getBlockZ()
 	{
-		return blockZ;
+		return position.getZ();
+	}
+
+	@Override
+	public int compareTo(Object other)
+	{
+		return 0;
 	}
 
 }
